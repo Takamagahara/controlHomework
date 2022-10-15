@@ -4,6 +4,11 @@
 
 package frc.robot;
 
+import com.revrobotics.CANSparkMax;
+import com.revrobotics.SparkMaxLimitSwitch;
+import com.revrobotics.CANSparkMaxLowLevel.MotorType;
+import com.revrobotics.SparkMaxLimitSwitch.Type;
+
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -20,6 +25,11 @@ public class Robot extends TimedRobot {
   private String m_autoSelected;
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
 
+  final int mainSMID = 16;
+  final int followerSMID = 17;
+  CANSparkMax mainSM;
+  CANSparkMax followerSM;
+
   /**
    * This function is run when the robot is first started up and should be used for any
    * initialization code.
@@ -29,6 +39,9 @@ public class Robot extends TimedRobot {
     m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
     m_chooser.addOption("My Auto", kCustomAuto);
     SmartDashboard.putData("Auto choices", m_chooser);
+
+    mainSM = new CANSparkMax(mainSMID, MotorType.kBrushed);
+    followerSM = new CANSparkMax(followerSMID, MotorType.kBrushed);
   }
 
   /**
@@ -74,11 +87,68 @@ public class Robot extends TimedRobot {
 
   /** This function is called once when teleop is enabled. */
   @Override
-  public void teleopInit() {}
+  public void teleopInit() {
+    
+  }
 
+  void moveArm(double speed) {
+    double speedFactor;
+    if (apoz == ArmPosition.owREVERSE) {
+      speedFactor = -1;
+    } else if (apoz == ArmPosition.owFORWARD) {
+      speedFactor = 1;
+    } else {
+      speedFactor = 0;
+    }
+
+    speed *= speedFactor;
+
+    mainSM.set(speed);
+    followerSM.set(speed);
+  }
+
+  enum ArmPosition {
+    FORWARD,
+    REVERSE,
+    owREVERSE, // on the way from forward to reverse (forward -> reverse)
+    owFORWARD, // on the way from reverse to forward (reverse -> forward)
+    _unrecognized; // fail safe (?)
+  }
+
+  // ArmPosition opps(ArmPosition current) {
+  //   ArmPosition saved;
+  //   if (current == ArmPosition._unrecognized) return current; // break to nothing? !CHECK
+  //   else
+  //     return (current == ArmPosition.FORWARD) ? ArmPosition.REVERSE : ArmPosition.FORWARD;
+  // }
+
+  ArmPosition apoz; // put value in SmartDashboard (?) 
   /** This function is called periodically during operator control. */
   @Override
-  public void teleopPeriodic() {}
+  public void teleopPeriodic() {
+    SparkMaxLimitSwitch buttonStatusForwardRaw = mainSM.getForwardLimitSwitch(Type.kNormallyOpen);
+    SparkMaxLimitSwitch buttonStatusReverseRaw = followerSM.getReverseLimitSwitch(Type.kNormallyOpen);
+    if (buttonStatusForwardRaw.isPressed()) {
+      apoz = ArmPosition.FORWARD;
+      moveArm(0);
+    } else if (buttonStatusReverseRaw.isPressed()) {
+      apoz = ArmPosition.REVERSE;
+      moveArm(0);
+    } else {
+      apoz = ArmPosition._unrecognized;
+      moveArm(0);
+    }
+
+    if (/**button pressed */ && apoz == ArmPosition.FORWARD) {
+      // owREVERSE
+      apoz = ArmPosition.owREVERSE;
+      moveArm(0.10);
+    } else if (/**button pressed */ && apoz == ArmPosition.REVERSE) {
+      // owFORWARD
+      apoz = ArmPosition.owFORWARD;
+      moveArm(0.10);
+    }
+  }
 
   /** This function is called once when the robot is disabled. */
   @Override
