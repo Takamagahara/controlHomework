@@ -4,12 +4,17 @@
 
 package frc.robot;
 
+import javax.naming.ldap.Control;
+
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.SparkMaxLimitSwitch;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.revrobotics.SparkMaxLimitSwitch.Type;
 
+import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.I2C.Port;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
@@ -30,6 +35,11 @@ public class Robot extends TimedRobot {
   CANSparkMax mainSM;
   CANSparkMax followerSM;
 
+  PS4Controller controller;
+
+  final int buttonsDriverPort = 1;
+  
+
   /**
    * This function is run when the robot is first started up and should be used for any
    * initialization code.
@@ -42,6 +52,8 @@ public class Robot extends TimedRobot {
 
     mainSM = new CANSparkMax(mainSMID, MotorType.kBrushed);
     followerSM = new CANSparkMax(followerSMID, MotorType.kBrushed);
+
+    controller = new PS4Controller(buttonsDriverPort); 
   }
 
   /**
@@ -139,11 +151,13 @@ public class Robot extends TimedRobot {
       moveArm(0);
     }
 
-    if (/**button pressed */ && apoz == ArmPosition.FORWARD) {
+
+    
+    if (controller.getCrossButtonPressed() && apoz == ArmPosition.FORWARD) { 
       // owREVERSE
       apoz = ArmPosition.owREVERSE;
       moveArm(0.10);
-    } else if (/**button pressed */ && apoz == ArmPosition.REVERSE) {
+    } else if (controller.getCrossButtonPressed() && apoz == ArmPosition.REVERSE) {
       // owFORWARD
       apoz = ArmPosition.owFORWARD;
       moveArm(0.10);
