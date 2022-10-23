@@ -6,6 +6,7 @@ package frc.robot;
 
 import javax.naming.ldap.Control;
 
+import com.revrobotics.CANDigitalInput;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.SparkMaxLimitSwitch;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
@@ -42,6 +43,19 @@ public class Robot extends TimedRobot {
 
   final int buttonsDriverPort = 1;
 
+  SparkMaxLimitSwitch forwardLimitSwitch = mainSM.getForwardLimitSwitch(Type.kNormallyOpen);
+  SparkMaxLimitSwitch reverseLimitSwitch = mainSM.getReverseLimitSwitch(Type.kNormallyOpen);
+
+  
+  enum ArmPosition {
+    COLLECT,
+    SHOOT,
+    movetoSHOOT,
+    movetoCOLLECT, 
+  }
+
+  ArmPosition apoz; // apoz is expected to start either in COLLECT or SHOOT state
+
   /**
    * This function is run when the robot is first started up and should be used
    * for any
@@ -53,10 +67,18 @@ public class Robot extends TimedRobot {
     m_chooser.addOption("My Auto", kCustomAuto);
     SmartDashboard.putData("Auto choices", m_chooser);
 
-    mainSM = new CANSparkMax(mainSMID, MotorType.kBrushed);
-    followerSM = new CANSparkMax(followerSMID, MotorType.kBrushed);
+    mainSM = new CANSparkMax(mainSMID, MotorType.kBrushless);
+    followerSM = new CANSparkMax(followerSMID, MotorType.kBrushless);
+    
+    followerSM.follow(mainSM, true); // defined as followed and inverted
 
     controller = new PS4Controller(buttonsDriverPort);
+
+    if (forwardLimitSwitch.isPressed())
+      apoz = ArmPosition.COLLECT;
+    else
+      apoz = ArmPosition.SHOOT;
+    
   }
 
   /**
@@ -120,51 +142,52 @@ public class Robot extends TimedRobot {
   void moveArm(double speed) {
     double speedFactor = 0;
 
-    if (apoz == ArmPosition.owREVERSE || apoz == ArmPosition.owFORWARD) {
-      speedFactor = (apoz == ArmPosition.owFORWARD) ? 1 : -1;
+    if (apoz == ArmPosition.movetoSHOOT || apoz == ArmPosition.movetoCOLLECT) {
+      speedFactor = (apoz == ArmPosition.movetoCOLLECT) ? 1 : -1;
     } 
 
     speed *= speedFactor;
 
-    mainSM.set(speed);
-    followerSM.set(speed);
+    mainSM.set(speed); // followerSM is following mainSM
   }
 
-  enum ArmPosition {
-    FORWARD,
-    REVERSE,
-    owREVERSE, // on the way from forward to reverse (forward -> reverse)
-    owFORWARD, // on the way from reverse to forward (reverse -> forward)
-    _unrecognized; // fail safe (?)
-  }
-
-  ArmPosition apoz; // put value in SmartDashboard (?)
 
   /** This function is called periodically during operator control. */
   @Override
-  public void teleopPeriodic() {
-    SparkMaxLimitSwitch buttonStatusForwardRaw = mainSM.getForwardLimitSwitch(Type.kNormallyOpen);
-    SparkMaxLimitSwitch buttonStatusReverseRaw = followerSM.getReverseLimitSwitch(Type.kNormallyOpen);
-    if (buttonStatusForwardRaw.isPressed()) {
-      apoz = ArmPosition.FORWARD;
-      moveArm(0);
-    } else if (buttonStatusReverseRaw.isPressed()) {
-      apoz = ArmPosition.REVERSE;
-      moveArm(0);
-    } else {
-      apoz = ArmPosition._unrecognized;
-      moveArm(0);
-    }
+  public void teleopPeriodic() {    
+    if (forwardLimitSwitch.isPressed() || reverseLimitSwitch.isPressed())
+      moveArm(0); // insted of deprecated "enableLimitSwitch" function;
 
-    if (controller.getCrossButtonPressed() && apoz == ArmPosition.FORWARD) {
-      // owREVERSE
-      apoz = ArmPosition.owREVERSE;
-      moveArm(0.10);
-    } else if (controller.getCrossButtonPressed() && apoz == ArmPosition.REVERSE) {
-      // owFORWARD
-      apoz = ArmPosition.owFORWARD;
-      moveArm(0.10);
+    switch (apoz) {
+      case COLLECT:
+        if (controller.getCrossButtonPressed()) {
+          apoz = ArmPosition.movetoSHOOT;
+          moveArm(0.1);      
+        }
+        break;
+
+      case movetoSHOOT:
+        if (controller.getCrossButtonPressed()) {
+          apoz = ArmPosition.movetoCOLLECT;
+          moveArm(0.1);
+        }
+        break;
+      
+      case SHOOT:
+      if (controller.getCrossButtonPressed()) {
+        apoz = ArmPosition.movetoCOLLECT;
+        moveArm(0.1);
+      }
+      break;
+
+      case movetoCOLLECT:
+      if (controller.getCrossButtonPressed()) {
+        apoz = ArmPosition.movetoSHOOT;
+        moveArm(0.1);
+      }
+      break;
     }
+    
   }
 
   /** This function is called once when the robot is disabled. */
