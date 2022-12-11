@@ -8,10 +8,13 @@ import javax.naming.ldap.Control;
 
 import com.revrobotics.CANDigitalInput;
 import com.revrobotics.CANSparkMax;
+import com.revrobotics.RelativeEncoder;
 import com.revrobotics.SparkMaxLimitSwitch;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.revrobotics.SparkMaxLimitSwitch.Type;
 
+import edu.wpi.first.math.controller.ArmFeedforward;
+import edu.wpi.first.math.controller.ElevatorFeedforward;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.TimedRobot;
@@ -46,6 +49,18 @@ public class Robot extends TimedRobot {
   SparkMaxLimitSwitch forwardLimitSwitch = mainSM.getForwardLimitSwitch(Type.kNormallyOpen);
   SparkMaxLimitSwitch reverseLimitSwitch = mainSM.getReverseLimitSwitch(Type.kNormallyOpen);
 
+  ArmFeedforward feedforward;
+
+  //feedforward variables
+  double kS = 0.12;
+  double kG = 0.65;
+  double kV = 49.52;
+  double kA = 0.0;
+
+  double currentPosition;
+  double resetPosition;
+
+  double forwardPosition, reversePosition;
   
   enum ArmPosition {
     COLLECT,
@@ -55,6 +70,7 @@ public class Robot extends TimedRobot {
   }
 
   ArmPosition apoz; // apoz is expected to start either in COLLECT or SHOOT state
+  RelativeEncoder encoder;
 
   /**
    * This function is run when the robot is first started up and should be used
@@ -72,13 +88,21 @@ public class Robot extends TimedRobot {
     
     followerSM.follow(mainSM, true); // defined as followed and inverted
 
+    feedforward = new ArmFeedforward(kS, kG, kV, kA);
+
     controller = new PS4Controller(buttonsDriverPort);
 
-    if (forwardLimitSwitch.isPressed())
+    currentPosition = encoder.getPosition();
+
+    if (forwardLimitSwitch.isPressed()) {
       apoz = ArmPosition.COLLECT;
-    else
+      encoder.setPosition(-107.26);
+      forwardPosition = -107.26;
+    } else {
       apoz = ArmPosition.SHOOT;
-    
+      encoder.setPosition(35.60);
+      reversePosition = 35.60;
+    }
   }
 
   /**
