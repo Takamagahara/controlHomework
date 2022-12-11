@@ -166,6 +166,8 @@ public class Robot extends TimedRobot {
   void moveArm(double speed) {
     double speedFactor = 0;
 
+    speed += feedforward.calculate(Math.toRadians(encoder.getPosition()), encoder.getVelocity());
+
     if (apoz == ArmPosition.movetoSHOOT || apoz == ArmPosition.movetoCOLLECT) {
       speedFactor = (apoz == ArmPosition.movetoCOLLECT) ? 1 : -1;
     } 
