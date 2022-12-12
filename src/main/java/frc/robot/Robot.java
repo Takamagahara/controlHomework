@@ -4,23 +4,19 @@
 
 package frc.robot;
 
-import javax.naming.ldap.Control;
-
-import com.revrobotics.CANDigitalInput;
 import com.revrobotics.CANSparkMax;
+import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.SparkMaxLimitSwitch;
-import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.revrobotics.SparkMaxLimitSwitch.Type;
 
 import edu.wpi.first.math.controller.ArmFeedforward;
-import edu.wpi.first.math.controller.ElevatorFeedforward;
-import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.TimedRobot;
-import edu.wpi.first.wpilibj.I2C.Port;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -69,6 +65,8 @@ public class Robot extends TimedRobot {
     movetoCOLLECT, 
   }
 
+  String armStatus;
+
   ArmPosition apoz; // apoz is expected to start either in COLLECT or SHOOT state
   RelativeEncoder encoder;
 
@@ -103,6 +101,9 @@ public class Robot extends TimedRobot {
       encoder.setPosition(35.60);
       reversePosition = 35.60;
     }
+    
+    SmartDashboard.putString("armStatus", armStatus);
+
   }
 
   /**
@@ -117,6 +118,7 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotPeriodic() {
+    SmartDashboard.putString("armStatus", armStatus);
   }
 
   /**
@@ -174,6 +176,7 @@ public class Robot extends TimedRobot {
 
     speed *= speedFactor;
 
+    
     mainSM.set(speed); // followerSM is following mainSM
   }
 
@@ -186,13 +189,15 @@ public class Robot extends TimedRobot {
 
     switch (apoz) {
       case COLLECT:
-        if (controller.getCrossButtonPressed()) {
+      armStatus = "ArmPosition.COLLECT";  
+      if (controller.getCrossButtonPressed()) {
           apoz = ArmPosition.movetoSHOOT;
           moveArm(0.1);      
         }
         break;
 
       case movetoSHOOT:
+      armStatus = "ArmPosition.movetoSHOOT";
         if (controller.getCrossButtonPressed()) {
           apoz = ArmPosition.movetoCOLLECT;
           moveArm(0.1);
@@ -200,6 +205,7 @@ public class Robot extends TimedRobot {
         break;
       
       case SHOOT:
+      armStatus = "ArmPosition.SHOOT";
       if (controller.getCrossButtonPressed()) {
         apoz = ArmPosition.movetoCOLLECT;
         moveArm(0.1);
@@ -207,6 +213,7 @@ public class Robot extends TimedRobot {
       break;
 
       case movetoCOLLECT:
+      armStatus = "ArmPosition.movetoCOLLECT";
       if (controller.getCrossButtonPressed()) {
         apoz = ArmPosition.movetoSHOOT;
         moveArm(0.1);
