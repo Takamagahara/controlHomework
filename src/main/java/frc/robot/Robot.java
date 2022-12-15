@@ -11,12 +11,11 @@ import com.revrobotics.SparkMaxLimitSwitch;
 import com.revrobotics.SparkMaxLimitSwitch.Type;
 
 import edu.wpi.first.math.controller.ArmFeedforward;
-import edu.wpi.first.util.sendable.Sendable;
+import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj2.command.Command;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -45,13 +44,19 @@ public class Robot extends TimedRobot {
   SparkMaxLimitSwitch forwardLimitSwitch = mainSM.getForwardLimitSwitch(Type.kNormallyOpen);
   SparkMaxLimitSwitch reverseLimitSwitch = mainSM.getReverseLimitSwitch(Type.kNormallyOpen);
 
+  PIDController pid;
+
+  double kP; 
+  double kI;
+  double kD;
+
   ArmFeedforward feedforward;
 
   //feedforward variables
-  double kS = 0.12;
-  double kG = 0.65;
-  double kV = 49.52;
-  double kA = 0.0;
+  final double kS = 0.12;
+  final double kG = 0.65;
+  final double kV = 49.52;
+  final double kA = 0.0;
 
   double currentPosition;
   double resetPosition;
@@ -69,6 +74,8 @@ public class Robot extends TimedRobot {
 
   ArmPosition apoz; // apoz is expected to start either in COLLECT or SHOOT state
   RelativeEncoder encoder;
+
+  double movingSpeed;
 
   /**
    * This function is run when the robot is first started up and should be used
@@ -103,6 +110,9 @@ public class Robot extends TimedRobot {
     }
     
     SmartDashboard.putString("armStatus", armStatus);
+
+    forwardLimitSwitch.enableLimitSwitch(true);
+    reverseLimitSwitch.enableLimitSwitch(true);
 
   }
 
@@ -165,63 +175,54 @@ public class Robot extends TimedRobot {
 
   }
 
-  void moveArm(double speed) {
-    double speedFactor = 0;
+  void movingFeedforward() {
+    if (apoz == ArmPosition.COLLECT || apoz == ArmPosition.SHOOT) {
+      return;
+    }
 
-    speed += feedforward.calculate(Math.toRadians(encoder.getPosition()), encoder.getVelocity());
-
-    if (apoz == ArmPosition.movetoSHOOT || apoz == ArmPosition.movetoCOLLECT) {
-      speedFactor = (apoz == ArmPosition.movetoCOLLECT) ? 1 : -1;
-    } 
-
-    speed *= speedFactor;
-
-    
-    mainSM.set(speed); // followerSM is following mainSM
+    if (apoz == ArmPosition.movetoCOLLECT) {
+      mainSM.setVoltage(movingSpeed + feedforward.calculate(
+        Math.toRadians(encoder.getPosition()),
+        encoder.getVelocity()
+      ));
+    }
+    else if (apoz == ArmPosition.movetoSHOOT) {
+      mainSM.setVoltage(movingSpeed + feedforward.calculate(
+        Math.toRadians(encoder.getPosition()),
+        encoder.getVelocity()
+      ));
+    }
   }
-
 
   /** This function is called periodically during operator control. */
   @Override
-  public void teleopPeriodic() {    
-    if (forwardLimitSwitch.isPressed() || reverseLimitSwitch.isPressed())
-      moveArm(0); // insted of deprecated "enableLimitSwitch" function;
+  public void teleopPeriodic() {
 
-    switch (apoz) {
-      case COLLECT:
-      armStatus = "ArmPosition.COLLECT";  
-      if (controller.getCrossButtonPressed()) {
+    if (controller.getCrossButtonPressed()) {
+      switch (apoz) {
+        
+        case COLLECT:
           apoz = ArmPosition.movetoSHOOT;
-          moveArm(0.1);      
-        }
         break;
-
-      case movetoSHOOT:
-      armStatus = "ArmPosition.movetoSHOOT";
-        if (controller.getCrossButtonPressed()) {
+        
+        case movetoSHOOT:
           apoz = ArmPosition.movetoCOLLECT;
-          moveArm(0.1);
-        }
         break;
-      
-      case SHOOT:
-      armStatus = "ArmPosition.SHOOT";
-      if (controller.getCrossButtonPressed()) {
-        apoz = ArmPosition.movetoCOLLECT;
-        moveArm(0.1);
+        
+        case movetoCOLLECT:
+          apoz = ArmPosition.movetoSHOOT;
+        break;
+        
+        case SHOOT:
+          apoz = ArmPosition.movetoCOLLECT;
+        break;
       }
-      break;
-
-      case movetoCOLLECT:
-      armStatus = "ArmPosition.movetoCOLLECT";
-      if (controller.getCrossButtonPressed()) {
-        apoz = ArmPosition.movetoSHOOT;
-        moveArm(0.1);
-      }
-      break;
     }
-    
+
+    movingFeedforward();
   }
+
+  
 
   /** This function is called once when the robot is disabled. */
   @Override
