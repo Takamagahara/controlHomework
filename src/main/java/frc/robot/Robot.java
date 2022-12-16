@@ -180,18 +180,12 @@ public class Robot extends TimedRobot {
       return;
     }
 
-    if (apoz == ArmPosition.movetoCOLLECT) {
-      mainSM.setVoltage(movingSpeed + feedforward.calculate(
-        Math.toRadians(encoder.getPosition()),
-        encoder.getVelocity()
-      ));
-    }
-    else if (apoz == ArmPosition.movetoSHOOT) {
-      mainSM.setVoltage(movingSpeed + feedforward.calculate(
-        Math.toRadians(encoder.getPosition()),
-        encoder.getVelocity()
-      ));
-    }
+    double factor = (apoz == ArmPosition.movetoCOLLECT) ? 1 : -1;
+
+    mainSM.setVoltage(movingSpeed*factor + feedforward.calculate(
+      Math.toRadians(encoder.getPosition()),
+      encoder.getVelocity()
+    ));
   }
 
   /** This function is called periodically during operator control. */
